@@ -3,4 +3,5 @@ Export your Google Code project to XML
 
 1. git clone git://github.com/nbolton/google-code-export.git
 2. cd google-code-export/src
-3. main.py -p myproject -s 1 -c 100
+3. easy_install BeautifulSoup
+4. main.py -p myproject -s 1 -c 100
