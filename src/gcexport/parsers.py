@@ -148,7 +148,7 @@ class IssueParser:
             return None
 
     def parseComment(self, pre):
-        text = pre.renderContents().strip()              
+        text = pre.renderContents().strip()
         if text:
             comment = data.IssueComment()
             
@@ -163,9 +163,14 @@ class IssueParser:
                     a_content = pre.find('a').renderContents().strip()
                     comment.merged_with = int(a_content.replace('Issue ', ''))
             
-            # author is fairly simple, just the last <a> contents
-            comment.author = pre.findPrevious('a').renderContents()
-
+            # author and comment number live in the author span
+            author_span = pre.findPrevious('span', 'author')
+            author_span_text = ''.join(author_span.findAll(text=True)).strip()
+            author_re = re.search('Comment (\d+)\n by\n (.*)', author_span_text)
+            
+            comment.id = int(author_re.group(1))
+            comment.author = author_re.group(2)
+            
             # date is just the last <span> title attribute
             comment.date = datetime.strptime(
                 pre.findPrevious('span')['title'],

@@ -92,7 +92,8 @@ class XmlWriter:
     def appendComment(self, commentsXml, comment):
         commentXml = self.doc.createElement('comment')
         commentsXml.appendChild(commentXml)
-        
+
+        commentXml.attributes['id'] = str(comment.id)
         commentXml.attributes['author'] = comment.author
         commentXml.attributes['date'] = str(comment.date)
         
