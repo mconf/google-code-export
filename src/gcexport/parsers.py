@@ -1,6 +1,6 @@
 from BeautifulSoup import BeautifulSoup, SoupStrainer
 import urllib, re, data
-from datetime import datetime, date
+import datetime
 
 class IssueParser:
     
@@ -59,7 +59,7 @@ class IssueParser:
         issue.reporter = reporter_soup.findNext('a').renderContents()
         
         # report date is within the <span> title attribute after the reporter
-        issue.report_date = datetime.strptime(
+        issue.report_date = datetime.datetime.strptime(
             reporter_soup.findNext('span')['title'], '%a %b %d %H:%M:%S %Y')
 
         # status is within the next <span> that follows "Status: "
@@ -172,7 +172,7 @@ class IssueParser:
             comment.author = author_re.group(2)
             
             # date is just the last <span> title attribute
-            comment.date = datetime.strptime(
+            comment.date = datetime.datetime.strptime(
                 pre.findPrevious('span')['title'],
                 '%a %b %d %H:%M:%S %Y')
 
@@ -221,16 +221,18 @@ class IssueParser:
             'td').renderContents().strip()
         
         if close_date_text == 'Today':
-            return datetime.now().date()
-        
+            return datetime.datetime.now().date()
+        elif close_date_text == 'Yesterday':
+            return (datetime.datetime.now() - 
+                    datetime.timedelta(days=1)).date()
         else:
             close_date_year = re.match('\w+ \d{4}', close_date_text)
             if close_date_year:
                 # parse google's special date format: no day of month
-                return datetime.strptime(
+                return datetime.datetime.strptime(
                     '01 ' + close_date_text, '%d %b %Y').date()
             else:
                 # parse google's special date format: no year
-                this_year = date.today().strftime(' %Y')
-                return datetime.strptime(
+                this_year = datetime.date.today().strftime(' %Y')
+                return datetime.datetime.strptime(
                     close_date_text + this_year, '%b %d %Y').date()
