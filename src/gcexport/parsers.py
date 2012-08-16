@@ -3,20 +3,20 @@ import urllib, re, data
 import datetime
 
 class IssueParser:
-    
+
     url_format = 'http://code.google.com/p/%s/issues/detail?id=%i'
-    
+
     def __init__(self, project):
         self.project = project
 
     def parse(self, id, savePage=False):
         url = self.url_format % (self.project, id)
         print 'parse: %s' % url
-        
+
         usock = urllib.urlopen(url)
         data = usock.read()
         usock.close()
-        
+
         if savePage:
             # save last downloaded page to file
             f = open('last.html', 'w')
@@ -25,39 +25,38 @@ class IssueParser:
 
         soup = BeautifulSoup(data)
         return self.parseSoup(soup)
-    
+
     def regexFirst(self, soup_result, regex, group=1, default=None):
         if soup_result and len(soup_result) > 0:
             match = regex.search(soup_result[0].string)
             if match:
                 return match.group(group)
-        
+
         return default
-    
+
     def parseSoup(self, soup):
         issue = data.Issue()
-        
+
         id_match = re.search('Issue (\d+) -', soup.title.string)
         if id_match:
             issue.id = int(id_match.group(1))
         else:
             # unlikely to be more data if no id found
             return None
-        
-        summary_match = re.search(' (.*) - Project.*', soup.title.string)
-        if summary_match:
-            issue.summary = summary_match.group(1)
-        
+
+        header = soup.find(id='issueheader')
+        issue.summary = header.findNext('span', 'h3').renderContents()
+
         # get the number that preceeds "people/person starred", or 0 stars
         # if there's no text at all)
         stars_regex = re.compile('(\d+) (people|person) starred')
         stars_soup = soup.findAll('td', text=stars_regex)
         issue.stars = int(self.regexFirst(stars_soup, stars_regex, default=0))
-        
+
         # reporter is within the <a> that follows "Reported by"
-        reporter_soup = soup.find('div', 'author', text='\n Reported by ')
-        issue.reporter = reporter_soup.findNext('a').renderContents()
-        
+        reporter_soup = soup.find('div', 'author')
+        issue.reporter = reporter_soup.findNext('a', 'userlink').renderContents()
+
         # report date is within the <span> title attribute after the reporter
         issue.report_date = datetime.datetime.strptime(
             reporter_soup.findNext('span')['title'], '%a %b %d %H:%M:%S %Y')
@@ -67,6 +66,7 @@ class IssueParser:
         issue.status = status_soup.findNext('span').renderContents()
 
         # merge info follows the status in the same pattern (but within <a>)
+        # TODO: test
         merge_soup_th = status_soup.findNext('th', text='Merged:&nbsp;')
         if merge_soup_th:
             merge_soup_a = merge_soup_th.findNext('td').find('a')
@@ -89,15 +89,15 @@ class IssueParser:
         if labels_soup:
             issue.labels = []
             for label_soup in labels_soup:
-                # get rid of those <b> tags and add to the statuses
-                issue.labels.append(
-                    ''.join(label_soup.findAll(text=True)))
+                label = re.search('label:(.*)', label_soup['href']).group(1)
+                issue.labels.append(label)
 
         # TODO: there might be other types of related issues
+        # TODO: test
         rel_issues_div = soup.find('div', 'rel_issues')
         if rel_issues_div:
             issue.relations = []
-            
+
             blocking_b = rel_issues_div.find('b', text='Blocking:')
             if blocking_b:
                 # it seems that google only got round to implementing 1 type
@@ -111,6 +111,7 @@ class IssueParser:
                     issue.relations.append(blocks)
 
         # attachments exist in the description area
+        # TODO: test
         desc_td = soup.find('td', 'vt issuedescription')
         issue.attachments = self.parseAttachments(desc_td)
 
@@ -119,15 +120,18 @@ class IssueParser:
         if pre_tags:
             # first pre tag is always the details value
             issue.details = pre_tags[0].renderContents().strip()
-            
+
             if len(pre_tags) > 1:
                 issue.comments = []
-                
+
                 # all following pre tags are comments
                 for pre in pre_tags[1:]:
                     comment = self.parseComment(pre)
                     if comment:
                         issue.comments.append(comment)
+
+        # for property, value in vars(issue).iteritems():
+        #   print property, ": ", value
 
         return issue
 
@@ -138,7 +142,7 @@ class IssueParser:
             for attach_table in attach_div.findAll('table'):
                 attach_b = attach_table.find('b')
                 attach_a = attach_table.find('a', text='Download').parent
-                
+
                 attach = data.IssueAttachment()
                 attach.filename = attach_b.renderContents()
                 attach.url = attach_a['href']
@@ -151,7 +155,7 @@ class IssueParser:
         text = pre.renderContents().strip()
         if text:
             comment = data.IssueComment()
-            
+
             # clean up google's silly empty comments. this is valid
             # because users often reference other comments, so
             # we should persist google's silly empty comments.
@@ -162,15 +166,13 @@ class IssueParser:
                     # comment describes an issue merge
                     a_content = pre.find('a').renderContents().strip()
                     comment.merged_with = int(a_content.replace('Issue ', ''))
-            
+
             # author and comment number live in the author span
             author_span = pre.findPrevious('span', 'author')
-            author_span_text = ''.join(author_span.findAll(text=True)).strip()
-            author_re = re.search('Comment (\d+)\n by\n (.*)', author_span_text)
-            
-            comment.id = int(author_re.group(1))
-            comment.author = author_re.group(2)
-            
+
+            comment.id = author_span.findNext('a').renderContents()
+            comment.author = author_span.findNext('a', 'userlink').renderContents()
+
             # date is just the last <span> title attribute
             comment.date = datetime.datetime.strptime(
                 pre.findPrevious('span')['title'],
@@ -180,7 +182,7 @@ class IssueParser:
             changes_soup = pre.parent.find('div', 'box-inner')
             if changes_soup:
                 changes = changes_soup.renderContents().split('<br />')
-                
+
                 for change in changes:
                     labels_re = re.search('<b>Labels:</b> (.*)', change)
                     if labels_re:
@@ -189,7 +191,7 @@ class IssueParser:
                         comment.labels_added = []
                         for label in labels:
                             # if it beings with -, then it's been removed
-                            if label.find('-') == 0: 
+                            if label.find('-') == 0:
                                 comment.labels_removed.append(label[1:])
                             else:
                                 comment.labels_added.append(label)
@@ -209,9 +211,9 @@ class IssueParser:
                     summary_re = re.search('<b>Summary:</b> (.*)', change)
                     if summary_re:
                         comment.new_summary = summary_re.group(1)
-            
+
             comment.attachments = self.parseAttachments(pre.parent)
-            
+
             return comment
         else:
             return None
@@ -219,11 +221,11 @@ class IssueParser:
     def parseCloseDate(self, soup):
         close_date_text = soup.findNext(
             'td').renderContents().strip()
-        
+
         if close_date_text == 'Today':
             return datetime.datetime.now().date()
         elif close_date_text == 'Yesterday':
-            return (datetime.datetime.now() - 
+            return (datetime.datetime.now() -
                     datetime.timedelta(days=1)).date()
         else:
             close_date_year = re.match('\w+ \d{4}', close_date_text)
