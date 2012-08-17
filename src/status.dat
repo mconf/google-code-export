@@ -1,0 +1,9 @@
+"Fixed": "Resolved",
+"Done": "Resolved",
+"New": "New",
+"Accepted": "New",
+"Started": "New",
+"WontFix": "Rejected",
+"Invalid": "Rejected",
+"Verified": "Verified",
+"Duplicate": "Duplicate"
