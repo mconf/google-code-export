@@ -262,7 +262,7 @@ class IssueParser:
 
     def matches_label(self, label, issue):
         joined_labels = ' '.join(issue.labels)
-        if re.search(label, joined_labels):
+        if re.search(r'\b%s\b' % label, joined_labels):
             print "  - matched label %s, saving issue" % label
             return True
         else:
