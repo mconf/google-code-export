@@ -130,6 +130,9 @@ class IssueParser:
                     if comment:
                         issue.comments.append(comment)
 
+        # for property, value in vars(issue).iteritems():
+        #   print property, ": ", value
+
         return issue
 
     def parseAttachments(self, td):
@@ -235,30 +238,6 @@ class IssueParser:
                 this_year = datetime.date.today().strftime(' %Y')
                 return datetime.datetime.strptime(
                     close_date_text + this_year, '%b %d %Y').date()
-
-    def apply_mappings(self, issue, statuses, users):
-        if users:
-            issue.owner = self.apply_mapping(issue.owner, users)
-            issue.reporter = self.apply_mapping(issue.reporter, users)
-            if issue.comments:
-                for comment in issue.comments:
-                    comment.author = self.apply_mapping(comment.author, users)
-                    comment.new_owner = self.apply_mapping(comment.new_owner,
-                                                           users)
-        if statuses:
-            issue.status = self.apply_mapping(issue.status, statuses)
-            if issue.comments:
-              for comment in issue.comments:
-                comment.new_status = self.apply_mapping(comment.new_status,
-                                                        statuses)
-        # for property, value in vars(issue).iteritems():
-        #     print property, ": ", value
-        return issue
-
-    def apply_mapping(self, value, mapping):
-        if value in mapping:
-            value = mapping[value]
-        return value
 
     def matches_label(self, label, issue):
         joined_labels = ' '.join(issue.labels)

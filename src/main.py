@@ -15,10 +15,6 @@ def main():
     start = None
     count = None
     label = None
-    status_mappings = read_data_file("status.dat")
-    user_mappings = read_data_file("users.dat")
-    print_mapping(status_mappings)
-    print_mapping(user_mappings)
 
     for o, a in opts:
         if o == '-p':
@@ -51,7 +47,6 @@ def main():
     for i in range(start, start + count):
         issue = parser.parse(i)
         if issue:
-            issue = parser.apply_mappings(issue, status_mappings, user_mappings)
             if label:
                 if parser.matches_label(label, issue):
                     writer.appendIssue(issue)
@@ -61,17 +56,6 @@ def main():
             print 'no issue found!'
 
     writer.save()
-
-def read_data_file(filename):
-    ret = None
-    if os.path.isfile(filename):
-        ret = eval("{" + open(filename).read() + "}")
-    return ret
-
-def print_mapping(mapping):
-    if mapping:
-        for property, value in mapping.items():
-            print "  - mapping '%s' to '%s'" % (property, value)
 
 def usage():
     print 'usage: main.py -p <project-name> -s <start-id> -c <count>'
