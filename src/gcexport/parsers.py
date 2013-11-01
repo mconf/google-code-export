@@ -57,9 +57,9 @@ class IssueParser:
         reporter_soup = soup.find('div', 'author')
         issue.reporter = reporter_soup.findNext('a', 'userlink').renderContents()
 
-        # report date is within the <span> title attribute after the reporter
+        # report date is within the <span> title attribute after the reporter text
         issue.report_date = datetime.datetime.strptime(
-            reporter_soup.findNext('span')['title'], '%a %b %d %H:%M:%S %Y')
+            reporter_soup.findNext('span','date')['title'], '%a %b %d %H:%M:%S %Y')
 
         # status is within the next <span> that follows "Status: "
         status_soup = soup.find('th', text='Status:&nbsp;')
@@ -175,7 +175,7 @@ class IssueParser:
 
             # date is just the last <span> title attribute
             comment.date = datetime.datetime.strptime(
-                pre.findPrevious('span')['title'],
+                pre.findPrevious('span', 'date')['title'],
                 '%a %b %d %H:%M:%S %Y')
 
             # within the <td> for this comment, look for a changes box
